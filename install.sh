@@ -205,16 +205,36 @@ fi
 # glibc 检查（.NET 运行时需要；Alpine/musl 跑不了）
 if [ ! -e "\$ROOTFS/lib/ld-linux-aarch64.so.1" ] && [ ! -e "\$ROOTFS/usr/lib/ld-linux-aarch64.so.1" ] \
    && [ ! -e "\$ROOTFS/lib64/ld-linux-aarch64.so.1" ] && [ ! -e "\$ROOTFS/usr/lib64/ld-linux-aarch64.so.1" ]; then
-  echo "✗ 容器缺少 glibc（musl 系如 Alpine 跑不了 .NET），请在 tmoe 里换 Debian/Ubuntu 容器"
+  echo "✗ 容器缺少动态链接器 ld-linux（.NET 必需）——它缺失时 execve 同样报 No such file or directory"
+  echo "  请在 tmoe 里删除该容器并重装 Debian arm64，然后重跑 install.sh --server"
   exit 1
 fi
+
+# 启动失败时自动诊断
+diagnose(){
+  echo "──── 启动失败诊断 ────"
+  echo "ROOTFS=\$ROOTFS"
+  echo "SH=\$SH"
+  for f in /bin/bash /usr/bin/bash /bin/sh /usr/bin/sh \
+           /lib/ld-linux-aarch64.so.1 /usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1; do
+    if [ -e "\$ROOTFS\$f" ]; then echo "  有: \$f"; else echo "  缺: \$f"; fi
+  done
+  echo "提示: 动态链接器(ld-linux)缺失同样会报 No such file or directory"
+  echo "修复: 在 tmoe 里删除该容器并重装 Debian arm64，然后重跑 install.sh --server"
+}
 
 case "\$1" in
   start)
     nohup proot --link2symlink -0 -R "\$ROOTFS" \$EXTRA -w $APP_DIR \$SH run.sh > "\$LOG" 2>&1 &
-    sleep 1
-    echo "服务器已在后台启动（端口 $PORT/udp）"
-    echo "日志: \$LOG   停止: valley stop   查看日志: valley log" ;;
+    sleep 2
+    if head -c 2000 "\$LOG" 2>/dev/null | grep -q "proot error"; then
+      echo "✗ 服务器启动失败："
+      tail -n 8 "\$LOG"
+      diagnose
+    else
+      echo "服务器已在后台启动（端口 $PORT/udp）"
+      echo "日志: \$LOG   停止: valley stop   查看日志: valley log"
+    fi ;;
   stop)
     if pkill -f "proot.*\$APPDIR"; then echo "已停止"; else echo "没有在运行的服务器"; fi ;;
   log)
@@ -223,7 +243,10 @@ case "\$1" in
     ip -4 addr 2>/dev/null | grep inet | grep -v 127.0.0.1 || echo "未获取到局域网 IP" ;;
   *)
     echo "进入前台模式，控制台可输入 help / save / stop 等；Ctrl+C 退出"
-    proot --link2symlink -0 -R "\$ROOTFS" \$EXTRA -w $APP_DIR \$SH run.sh ;;
+    proot --link2symlink -0 -R "\$ROOTFS" \$EXTRA -w $APP_DIR \$SH run.sh
+    rc=\$?
+    if [ "\$rc" = 1 ]; then diagnose; fi
+    exit \$rc ;;
 esac
 VALEOF
 chmod +x "$PREFIX/bin/valley"

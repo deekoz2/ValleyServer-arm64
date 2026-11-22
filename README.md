@@ -18,7 +18,7 @@ bash install.sh
 - 448MB 服务器大包会按 **ghfast.top → gh-proxy.com → ghproxy.net → 直连** 顺序自动尝试，
   带字节数校验与断点续传；想换镜像直接改 install.sh 顶部的 `MIRRORS` 数组即可。
 
-参数：`--server` 跳过容器创建（已有 tmoe 容器）；`--start` 部署完直接后台启动。
+参数：`--server` 跳过容器创建（已有 tmoe 容器）；`--fix` 只重建 `valley` 启动脚本（秒级，改容器后用）；`--start` 部署完直接后台启动。
 
 脚本会自动完成：
 

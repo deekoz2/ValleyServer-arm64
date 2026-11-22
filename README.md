@@ -10,9 +10,13 @@
 
 ```sh
 pkg install -y curl
-curl -fsSL https://raw.githubusercontent.com/deekoz2/ValleyServer-arm64/main/install.sh -o install.sh
+curl -fsSL https://cdn.jsdelivr.net/gh/deekoz2/ValleyServer-arm64@main/install.sh -o install.sh \
+  || curl -fsSL https://raw.githubusercontent.com/deekoz2/ValleyServer-arm64/main/install.sh -o install.sh
 bash install.sh
 ```
+
+- 448MB 服务器大包会按 **ghfast.top → gh-proxy.com → ghproxy.net → 直连** 顺序自动尝试，
+  带字节数校验与断点续传；想换镜像直接改 install.sh 顶部的 `MIRRORS` 数组即可。
 
 参数：`--server` 跳过容器创建（已有 tmoe 容器）；`--start` 部署完直接后台启动。
 

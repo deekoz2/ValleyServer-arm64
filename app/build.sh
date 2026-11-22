@@ -35,7 +35,7 @@ jar cf "$OUT/dex/classes.jar" -C "$OUT/classes" .
 echo "[3/5] aapt 打包"
 aapt package -f -M AndroidManifest.xml -I "$SDK_JAR" \
   --min-sdk-version 24 --target-sdk-version 30 \
-  --version-code 1 --version-name 1.0.0 \
+  --version-code 2 --version-name 1.0.1 \
   -F "$OUT/valley-launcher-unsigned.apk"
 (cd "$OUT/dex" && zip -q -u ../valley-launcher-unsigned.apk classes.dex)
 

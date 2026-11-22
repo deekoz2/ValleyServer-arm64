@@ -142,8 +142,12 @@ mkdir -p "$ROOTFS$APP_DIR"
 
 if [ "$DO_EXTRACT" = 1 ]; then
   command -v unzip >/dev/null 2>&1 || pkg install -y unzip || die "unzip 不可用"
-  say "解压中（约 1-2 分钟，请耐心等待）…"
-  rm -rf "${ROOTFS:?}$APP_DIR/ValleyServer-linux-arm64"
+  if [ -f "$ROOTFS$APP_DIR/config.json" ]; then
+    cp "$ROOTFS$APP_DIR/config.json" "$HOME/valleyserver-config.bak" && say "已备份 config.json（部署后自动恢复）"
+  fi
+  say "清理旧部署并重新解压（约 1-2 分钟，请耐心等待）…"
+  rm -rf "${ROOTFS:?}$APP_DIR"
+  mkdir -p "$ROOTFS$APP_DIR"
   unzip -oq "$ZIP" -d "$ROOTFS$APP_DIR" || die "解压失败，请重跑 install.sh"
   if [ -d "$ROOTFS$APP_DIR/ValleyServer-linux-arm64" ]; then
     mv "${ROOTFS:?}$APP_DIR/ValleyServer-linux-arm64/"* "$ROOTFS$APP_DIR/"
@@ -152,6 +156,9 @@ if [ "$DO_EXTRACT" = 1 ]; then
   [ -x "$ROOTFS$APP_DIR/ValleyServer" ] || die "解压后未找到 ValleyServer 可执行文件"
   chmod +x "$ROOTFS$APP_DIR/ValleyServer"
   [ -f "$ROOTFS$APP_DIR/patch-arm64.sh" ] && chmod +x "$ROOTFS$APP_DIR/patch-arm64.sh"
+  if [ -f "$HOME/valleyserver-config.bak" ] && [ ! -f "$ROOTFS$APP_DIR/config.json" ]; then
+    cp "$HOME/valleyserver-config.bak" "$ROOTFS$APP_DIR/config.json" && say "已恢复 config.json"
+  fi
 else
   [ -x "$ROOTFS$APP_DIR/ValleyServer" ] || die "--fix 需要已部署过的服务器，先完整跑一遍 install.sh"
 fi
@@ -223,8 +230,7 @@ chmod +x "$PREFIX/bin/valley"
 
 # ========== 5/5 完成 ==========
 step "5/5 完成！"
-cat <<TIPS
-
+printf "%b" "
   ${G}安装完成${N} —— 星露谷物语无头专用服务器已就绪
 
     启动      ${B}valley${N}            （前台运行，控制台输入 help 看指令）
@@ -238,8 +244,7 @@ cat <<TIPS
 
     首次启动较慢（生成地图数据），请耐心等待。
     服务器本体: Lixeer/ValleyServer v3.0.3 (Apache-2.0)
-
-TIPS
+"
 
 if [ "$DO_START" = 1 ]; then
   say "按 --start 要求，后台启动服务器…"

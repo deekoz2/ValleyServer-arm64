@@ -49,8 +49,11 @@ find_rootfs(){
 
 # ========== 1/5 基础依赖 ==========
 step "1/5 安装基础依赖"
-pkg update -y >/dev/null 2>&1 || warn "apt update 有报错，继续"
-pkg install -y curl proot tar xz-utils unzip pv aria2 || warn "部分依赖安装失败，继续尝试"
+apt update -y >/dev/null 2>&1 || warn "apt update 有报错，继续"
+say "升级基础库（修复 libcurl/openssl 符号不匹配等部分升级问题，可能需几分钟）…"
+DEBIAN_FRONTEND=noninteractive apt upgrade -y -o Dpkg::Options::=--force-confold >/dev/null 2>&1 \
+  || warn "apt upgrade 有报错，继续"
+pkg install -y curl proot tar xz-utils unzip pv aria2 openssl || warn "部分依赖安装失败，继续尝试"
 
 # ========== 2/5 tmoe 容器 ==========
 ROOTFS=""

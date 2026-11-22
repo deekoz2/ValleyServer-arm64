@@ -21,7 +21,6 @@ die(){  printf "%b[✗]%b %s\n" "$R" "$N" "$*"; exit 1; }
 step(){ printf "\n%b===== %s =====%b\n" "$B" "$*" "$N"; }
 
 REPO="https://github.com/deekoz2/ValleyServer-arm64"
-ASSET="$REPO/releases/download/v3.0.3-arm64-dsh/ValleyServer-linux-arm64.zip"
 TMOE_BOOT="https://l.tmoe.me"
 TM_DIR="$HOME/.local/share/tmoe-linux"   # tmoe 容器根目录（Termux 侧）
 APP_DIR="/opt/valleyserver"              # 服务器在容器内路径
@@ -74,17 +73,44 @@ else
   say "使用容器: $ROOTFS"
 fi
 
-# ========== 3/5 下载服务器 ==========
+# ========== 3/5 下载服务器（镜像优先，自动切换） ==========
 step "3/5 下载 ValleyServer v3.0.3 linux-arm64（约 448MB，支持断点续传）"
+ASSET_FULL="https://github.com/deekoz2/ValleyServer-arm64/releases/download/v3.0.3-arm64-dsh/ValleyServer-linux-arm64.zip"
+EXPECT_SIZE=469458959
 ZIP="$HOME/valleyserver-dsh.zip"
-if [ -f "$ZIP" ] && [ "$(wc -c < "$ZIP")" -gt 469000000 ]; then
+
+# GitHub 加速镜像（按序尝试；空串 = 直连兜底；可自行增删/调整顺序）
+MIRRORS=(
+  "https://ghfast.top/"
+  "https://gh-proxy.com/"
+  "https://ghproxy.net/"
+  ""
+)
+
+dl_one(){  # $1=完整URL
+  if command -v aria2c >/dev/null 2>&1; then
+    aria2c -x4 -s4 -k1M -c --allow-overwrite=true --timeout=20 --max-tries=2 --summary-interval=5 \
+      -d "$(dirname "$ZIP")" -o "$(basename "$ZIP")" "$1"
+  else
+    curl -L -C - --retry 2 --connect-timeout 12 -o "$ZIP" "$1"
+  fi
+}
+
+if [ -f "$ZIP" ] && [ "$(wc -c < "$ZIP" 2>/dev/null || echo 0)" = "$EXPECT_SIZE" ]; then
   say "已存在完整下载，跳过"
-elif command -v aria2c >/dev/null 2>&1; then
-  aria2c -x6 -s6 -k1M -c --allow-overwrite=true -d "$(dirname "$ZIP")" -o "$(basename "$ZIP")" "$ASSET" \
-    || die "下载失败：检查网络后重跑 install.sh（会断点续传）"
 else
-  curl -L -C - --retry 5 --retry-delay 2 -o "$ZIP" "$ASSET" \
-    || die "下载失败：检查网络后重跑 install.sh（会断点续传）"
+  ok_dl=0
+  for m in "${MIRRORS[@]}"; do
+    if [ -z "$m" ]; then say "尝试直连 GitHub…"; else say "尝试镜像: $m …"; fi
+    dl_one "${m}${ASSET_FULL}" || { warn "该源失败，切换下一个"; continue; }
+    size=$(wc -c < "$ZIP" 2>/dev/null || echo 0)
+    if [ "$size" = "$EXPECT_SIZE" ]; then
+      ok_dl=1; say "下载校验通过（$size 字节）"; break
+    fi
+    warn "文件大小不符（$size != $EXPECT_SIZE），删除后换源重试"
+    rm -f "$ZIP"
+  done
+  [ "$ok_dl" = 1 ] || die "所有下载源均失败：检查网络后重跑 install.sh（支持断点续传）"
 fi
 say "下载完成: $(du -h "$ZIP" 2>/dev/null | cut -f1)"
 

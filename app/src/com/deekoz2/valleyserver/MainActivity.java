@@ -237,11 +237,25 @@ public class MainActivity extends Activity implements ResultReceiver.Callback {
                     return;
                 }
                 waiting[idx] = false;
-                if (code == 0 && stdout != null && stdout.contains("valley-ok")) {
+                if (code == 0) {
                     log("✓ 连接成功：" + LABELS[idx] + " 可正常执行命令，可以一键安装了！");
+                    if (stdout == null || !stdout.contains("valley-ok")) {
+                        log("   （注：此 Termux 版本不回传命令输出，不影响安装）");
+                    }
                 } else {
-                    log("⚠ " + LABELS[idx] + " 有回执但异常：code=" + code
-                            + (stderr == null ? "" : "  stderr=" + stderr.trim()));
+                    log("⚠ " + LABELS[idx] + " 回执异常：code=" + code);
+                    if (stdout != null && stdout.trim().length() > 0) {
+                        log("   stdout: " + stdout.trim());
+                    }
+                    if (stderr != null && stderr.trim().length() > 0) {
+                        log("   stderr: " + stderr.trim());
+                    }
+                    if (code == 403 || code == 13
+                            || (stderr != null && stderr.contains("external"))) {
+                        log("   → 原因：Termux 未放行「外部应用」。请在 Termux 里执行：");
+                        log("     mkdir -p ~/.termux && echo 'allow-external-apps=true' >> ~/.termux/termux.properties");
+                        log("     然后完全退出 Termux 再重开，回到本 APP 重新点「检测连接」。");
+                    }
                 }
             }
         });
